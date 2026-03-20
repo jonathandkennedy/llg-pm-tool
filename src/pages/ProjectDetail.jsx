@@ -116,7 +116,16 @@ export default function ProjectDetail({ projectId, onBack }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#project/' + projectId); alert('Link copied to clipboard!') }}>Share</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => {
+  const url = window.location.origin + '/#project/' + projectId
+  const ta = document.createElement('textarea')
+  ta.value = url
+  document.body.appendChild(ta)
+  ta.select()
+  document.execCommand('copy')
+  document.body.removeChild(ta)
+  alert('Link copied: ' + url)
+}}>Share</button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowEditProject(true)}>Edit Project</button>
         </div>
       </div>
