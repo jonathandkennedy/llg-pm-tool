@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { exportCSV } from '../exportCSV.jsx'
 import { supabase } from '../supabaseClient'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -152,7 +153,7 @@ export default function Reports() {
           <h1>Reports</h1>
           <p>Revenue, performance, and operations</p>
         </div>
-        <button className="btn btn-secondary">
+        <button className="btn btn-secondary" onClick={() => exportCSV('llg_revenue_report', ['Client', 'Package Tier', 'Package MRR', 'Gravity Add-on', 'Total MRR', 'Status', 'Health'], clientRevenue.map(c => [c.name, c.tier, c.packagePrice, c.hasGravity ? '$1,999' : 'No', c.totalRevenue, c.lifecycle, c.health]))}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
           </svg>

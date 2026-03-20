@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import CreateProjectModal from './CreateProjectModal.jsx'
+import { exportCSV } from '../exportCSV.jsx'
 
 export default function Projects({ onViewProject }) {
   const [projects, setProjects] = useState([])
@@ -67,6 +68,7 @@ export default function Projects({ onViewProject }) {
           <h1>Projects</h1>
           <p>Master record — all client files</p>
         </div>
+        <button className="btn btn-secondary" onClick={() => exportCSV('llg_projects', ['Client Name', 'Status', 'Package Tier', 'Primary Owner', 'Launch Date', 'Health', 'Monthly Revenue'], filtered.map(p => [p.name, p.lifecycle_type, p.package_tier, p.users?.full_name || '', p.target_launch_date || '', p.health, p.monthly_revenue || 0]))}>Export CSV</button>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
           Create Project
