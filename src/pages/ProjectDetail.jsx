@@ -116,7 +116,7 @@ export default function ProjectDetail({ projectId, onBack }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary btn-sm">Share</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#project/' + projectId); alert('Link copied to clipboard!') }}>Share</button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowEditProject(true)}>Edit Project</button>
         </div>
       </div>
