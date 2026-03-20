@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import CreateTaskModal from './CreateTaskModal.jsx'
 import EditProjectModal from './EditProjectModal.jsx'
+import GanttChart from './GanttChart.jsx'
 
 export default function ProjectDetail({ projectId, onBack }) {
   const [project, setProject] = useState(null)
@@ -116,16 +117,7 @@ export default function ProjectDetail({ projectId, onBack }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => {
-  const url = window.location.origin + '/#project/' + projectId
-  const ta = document.createElement('textarea')
-  ta.value = url
-  document.body.appendChild(ta)
-  ta.select()
-  document.execCommand('copy')
-  document.body.removeChild(ta)
-  alert('Link copied: ' + url)
-}}>Share</button>
+          <button className="btn btn-secondary btn-sm">Share</button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowEditProject(true)}>Edit Project</button>
         </div>
       </div>
@@ -325,37 +317,31 @@ export default function ProjectDetail({ projectId, onBack }) {
       {/* ── TIMELINE TAB ── */}
       {activeTab === 'timeline' && (
         <div>
-          {/* Milestone timeline built from project dates + task completions */}
+          {/* Gantt Chart */}
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div className="card-header"><h3>Gantt chart</h3></div>
+            <div className="card-body" style={{ padding: '16px 20px' }}>
+              {tasks.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--slate-400)', fontSize: 13 }}>No tasks to display — add tasks to see the Gantt chart</div>
+              ) : (
+                <GanttChart tasks={tasks} onTaskClick={(id) => { /* could navigate to task detail */ }} />
+              )}
+            </div>
+          </div>
+
+          {/* Milestones */}
           <div className="card">
-            <div className="card-header"><h3>Project timeline</h3></div>
+            <div className="card-header"><h3>Milestones</h3></div>
             <div className="card-body">
               <div style={{ position: 'relative', paddingLeft: 30 }}>
-                {/* Vertical line */}
                 <div style={{ position: 'absolute', left: 11, top: 6, bottom: 6, width: 2, background: 'var(--slate-200)' }} />
-
-                {/* Project created */}
                 <TimelineItem color="var(--brand-500)" title="Project created" date={project.created_at} detail={`${pkg?.name || 'Package'} — Owner: ${owner?.full_name || '—'}`} />
-
-                {/* Started */}
                 {project.started_at && <TimelineItem color="var(--info-500)" title="Work started" date={project.started_at} detail={`${project.bilingual ? 'Bilingual ' : ''}${project.has_gravity_addon ? '+ Gravity Pack' : ''}`} />}
-
-                {/* Task completions (last 10) */}
-                {completedTasks.slice(0, 10).map(t => (
-                  <TimelineItem key={t.id} color="var(--success-500)" title={`Task completed: ${t.title}`} date={t.completed_at || t.updated_at} detail={`${t.users?.full_name || 'Team'} · ${t.department || ''} · ${t.logged_hours || 0}h logged`} />
+                {completedTasks.slice(0, 5).map(t => (
+                  <TimelineItem key={t.id} color="var(--success-500)" title={`Completed: ${t.title}`} date={t.completed_at || t.updated_at} detail={`${t.users?.full_name || 'Team'} · ${t.logged_hours || 0}h`} />
                 ))}
-
-                {/* Go live */}
-                {project.go_live_date && <TimelineItem color="var(--success-700)" title="🚀 Project went live" date={project.go_live_date} detail={project.domain_url || ''} />}
-
-                {/* Target launch (future) */}
-                {project.target_launch_date && !project.go_live_date && (
-                  <TimelineItem color="var(--slate-400)" title="Target launch date" date={project.target_launch_date} detail="Upcoming" dashed />
-                )}
-
-                {/* Activity log entries */}
-                {activityLog.map(log => (
-                  <TimelineItem key={log.id} color="var(--slate-400)" title={log.action?.replace(/_/g, ' ')} date={log.created_at} detail={JSON.stringify(log.metadata || {}).substring(0, 80)} />
-                ))}
+                {project.go_live_date && <TimelineItem color="var(--success-700)" title="🚀 Went live" date={project.go_live_date} detail={project.domain_url || ''} />}
+                {project.target_launch_date && !project.go_live_date && <TimelineItem color="var(--slate-400)" title="Target launch" date={project.target_launch_date} detail="Upcoming" dashed />}
               </div>
             </div>
           </div>
