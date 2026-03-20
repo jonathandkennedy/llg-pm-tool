@@ -9,6 +9,7 @@ import OngoingBoard from './pages/OngoingBoard.jsx'
 import Projects from './pages/Projects.jsx'
 import ProjectDetail from './pages/ProjectDetail.jsx'
 import Tasks from './pages/Tasks.jsx'
+import TaskDetail from './pages/TaskDetail.jsx'
 import Workload from './pages/Workload.jsx'
 import Reports from './pages/Reports.jsx'
 import Inbox from './pages/Inbox.jsx'
@@ -127,13 +128,18 @@ export default function App() {
       return <ProjectDetail projectId={subId} onBack={() => navigate('projects')} />
     }
 
+    // Task detail view
+    if (basePage === 'task' && subId) {
+      return <TaskDetail taskId={subId} onBack={() => navigate('tasks')} />
+    }
+
     switch (basePage) {
       case 'dashboard': return <Dashboard user={user} />
       case 'inbox': return <Inbox user={user} />
       case 'launch': return <LaunchBoard onViewProject={(id) => navigate(`project/${id}`)} />
-      case 'ongoing': return <OngoingBoard />
+      case 'ongoing': return <OngoingBoard onViewTask={(id) => navigate(`task/${id}`)} />
       case 'projects': return <Projects onViewProject={(id) => navigate(`project/${id}`)} />
-      case 'tasks': return <Tasks />
+      case 'tasks': return <Tasks onViewTask={(id) => navigate(`task/${id}`)} />
       case 'workload': return <Workload />
       case 'reports': return <Reports />
       case 'settings': return <Settings user={user} isAdmin={user?.role === 'admin'} />
@@ -142,7 +148,7 @@ export default function App() {
   }
 
   // Figure out which sidebar item to highlight
-  const sidebarRoute = basePage === 'project' ? 'projects' : basePage
+  const sidebarRoute = basePage === 'project' ? 'projects' : basePage === 'task' ? 'tasks' : basePage
 
   return (
     <>

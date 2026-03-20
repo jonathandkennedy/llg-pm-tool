@@ -1,24 +1,24 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import CreateTaskModal from './CreateTaskModal.jsx'
 
-export default function Tasks() {
+export default function Tasks({ onViewTask }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterProject, setFilterProject] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
+  const [filterDept, setFilterDept] = useState('all')
+  const [showCreateTask, setShowCreateTask] = useState(false)
 
-  useEffect(() => {
-    fetchTasks()
-  }, [])
+  useEffect(() => { fetchTasks() }, [])
 
   async function fetchTasks() {
     try {
       const { data, error } = await supabase
         .from('tasks')
-        .select('*, projects(name, package_tier)')
+        .select('*, projects(name, package_tier), users!tasks_assignee_id_fkey(full_name)')
         .order('due_date', { ascending: true })
-        .limit(100)
-
+        .limit(200)
       if (error) throw error
       setTasks(data || [])
     } catch (err) {
@@ -28,10 +28,13 @@ export default function Tasks() {
     }
   }
 
-  function isOverdue(dueDate) {
-    if (!dueDate) return false
-    return new Date(dueDate) < new Date()
-  }
+  const filtered = tasks.filter(t => {
+    if (filterPriority !== 'all' && t.priority !== filterPriority) return false
+    if (filterDept !== 'all' && t.department !== filterDept) return false
+    return true
+  })
+
+  function isOverdue(d) { return d && new Date(d) < new Date() }
 
   function getPriorityBadge(priority) {
     const map = {
@@ -39,75 +42,84 @@ export default function Tasks() {
       medium: { bg: 'var(--warning-50)', color: 'var(--warning-600)', label: 'P2 / Med' },
       low: { bg: 'var(--slate-100)', color: 'var(--slate-600)', label: 'P3 / Low' },
     }
-    const p = map[priority?.toLowerCase()] || map.low
-    return (
-      <span className="badge" style={{ background: p.bg, color: p.color }}>{p.label}</span>
-    )
+    const p = map[priority?.toLowerCase()] || map.medium
+    return <span className="badge" style={{ background: p.bg, color: p.color }}>{p.label}</span>
   }
 
-  function getQaStatusBadge(status) {
-    const map = {
-      pending_qa: { bg: 'var(--warning-50)', color: 'var(--warning-600)', label: 'Pending QA' },
-      in_review: { bg: 'var(--info-50)', color: 'var(--info-600)', label: 'In Review' },
-      changes_needed: { bg: 'var(--danger-50)', color: 'var(--danger-600)', label: 'Changes Needed' },
-      approved: { bg: 'var(--success-50)', color: 'var(--success-600)', label: 'Approved' },
+  function getStatusBadge(status) {
+    const colors = {
+      complete: { bg: 'var(--success-50)', color: 'var(--success-600)' },
+      in_progress: { bg: 'var(--info-50)', color: 'var(--info-600)' },
+      ready_for_qa: { bg: 'var(--warning-50)', color: 'var(--warning-600)' },
+      pending_qa: { bg: 'var(--warning-50)', color: 'var(--warning-600)' },
+      manager_review: { bg: 'var(--brand-50)', color: 'var(--brand-600)' },
+      waiting_on_client: { bg: 'var(--danger-50)', color: 'var(--danger-600)' },
+      escalated: { bg: 'var(--danger-50)', color: 'var(--danger-600)' },
+      new_this_cycle: { bg: 'var(--slate-100)', color: 'var(--slate-600)' },
+      scheduled: { bg: 'var(--success-50)', color: 'var(--success-600)' },
     }
-    const s = map[status] || { bg: 'var(--slate-100)', color: 'var(--slate-500)', label: status || '—' }
-    return (
-      <span className="badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
-    )
+    const s = colors[status] || { bg: 'var(--slate-100)', color: 'var(--slate-600)' }
+    const label = status?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—'
+    return <span className="badge" style={{ background: s.bg, color: s.color }}>{label}</span>
   }
 
-  function getQaActions(task) {
-    switch (task.qa_status) {
-      case 'pending_qa':
-        return (
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button className="btn btn-sm" style={{ background: 'var(--success-500)', color: 'white', fontSize: '12px', padding: '4px 10px' }}>Approve</button>
-            <button className="btn btn-secondary btn-sm" style={{ fontSize: '12px', padding: '4px 10px' }}>Request Changes</button>
-          </div>
-        )
-      case 'in_review':
-        return (
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button className="btn btn-sm" style={{ background: 'var(--warning-500)', color: 'white', fontSize: '12px', padding: '4px 10px' }}>Escalate</button>
-            <button className="btn btn-secondary btn-sm" style={{ fontSize: '12px', padding: '4px 10px' }}>View</button>
-          </div>
-        )
-      default:
-        return (
-          <button className="btn btn-secondary btn-sm" style={{ fontSize: '12px', padding: '4px 10px' }}>View</button>
-        )
-    }
+  function getDeptColor(dept) {
+    const map = { seo: '#5b21b6', dev: '#2563eb', design: '#ec4899', content: '#f59e0b', social: '#22c55e', ppc: '#ef4444', admin: '#64748b' }
+    return map[dept] || '#64748b'
   }
+
+  const departments = [...new Set(tasks.map(t => t.department).filter(Boolean))]
 
   return (
     <div>
-      {/* Header */}
       <div className="page-header">
         <div>
           <h1>Tasks</h1>
           <p>All tasks across projects</p>
         </div>
-        <button className="btn btn-primary">
+        <button className="btn btn-primary" onClick={() => setShowCreateTask(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
           Create Task
         </button>
       </div>
 
+      {/* Stats */}
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 16 }}>
+        <div className="stat-card">
+          <div className="stat-card-label">Total tasks</div>
+          <div className="stat-card-value">{tasks.length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">In progress</div>
+          <div className="stat-card-value" style={{ color: 'var(--info-600)' }}>{tasks.filter(t => t.status === 'in_progress').length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Completed</div>
+          <div className="stat-card-value" style={{ color: 'var(--success-600)' }}>{tasks.filter(t => t.status === 'complete').length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Overdue</div>
+          <div className="stat-card-value" style={{ color: 'var(--danger-600)' }}>{tasks.filter(t => isOverdue(t.due_date) && t.status !== 'complete' && !t.completed_at).length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Awaiting QA</div>
+          <div className="stat-card-value" style={{ color: 'var(--warning-600)' }}>{tasks.filter(t => t.qa_status === 'pending_qa').length}</div>
+        </div>
+      </div>
+
       {/* Filters */}
-      <div className="filter-bar">
-        <select className="input select" style={{ maxWidth: '160px' }} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
-          <option value="all">All Projects</option>
-        </select>
-        <select className="input select" style={{ maxWidth: '140px' }}>
-          <option>All Owners</option>
-        </select>
-        <select className="input select" style={{ maxWidth: '140px' }} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select className="input select" style={{ maxWidth: 140, fontSize: 13, padding: '7px 10px' }} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
           <option value="all">All Priority</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
+        </select>
+        <select className="input select" style={{ maxWidth: 160, fontSize: 13, padding: '7px 10px' }} value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+          <option value="all">All Departments</option>
+          {departments.map(d => (
+            <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+          ))}
         </select>
       </div>
 
@@ -115,55 +127,90 @@ export default function Tasks() {
       <div className="card">
         {loading ? (
           <div className="empty-state"><p>Loading tasks...</p></div>
-        ) : tasks.length === 0 ? (
-          <div className="empty-state">
-            <h3>No tasks yet</h3>
-            <p>Tasks will appear here as projects are created and templates spawn work.</p>
-          </div>
+        ) : filtered.length === 0 ? (
+          <div className="empty-state"><h3>No tasks found</h3><p>Adjust your filters or create a new task.</p></div>
         ) : (
           <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Task Name</th>
-                  <th>Project / Client</th>
+                  <th>Task</th>
+                  <th>Project</th>
+                  <th>Assignee</th>
+                  <th>Dept</th>
                   <th>Due Date</th>
                   <th>Priority</th>
-                  <th>QA Status</th>
-                  <th>QA Action</th>
+                  <th>Status</th>
+                  <th>Hours</th>
                 </tr>
               </thead>
               <tbody>
-                {tasks.map(task => (
-                  <tr key={task.id}>
+                {filtered.map(task => (
+                  <tr
+                    key={task.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onViewTask && onViewTask(task.id)}
+                  >
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--slate-900)', fontSize: '14px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--slate-900)', fontSize: 14, maxWidth: 280 }}>
                         {task.title}
+                      </div>
+                      {task.qa_status && task.qa_status !== 'not_required' && (
+                        <span className="badge" style={{
+                          marginTop: 2, fontSize: 10,
+                          background: task.qa_status === 'approved' ? 'var(--success-50)' : task.qa_status === 'changes_needed' ? 'var(--danger-50)' : 'var(--warning-50)',
+                          color: task.qa_status === 'approved' ? 'var(--success-600)' : task.qa_status === 'changes_needed' ? 'var(--danger-600)' : 'var(--warning-600)',
+                        }}>
+                          QA: {task.qa_status.replace(/_/g, ' ')}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 13 }}>
+                      {task.projects?.name || '—'}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {task.users?.full_name ? (
+                          <>
+                            <div style={{
+                              width: 26, height: 26, borderRadius: '50%',
+                              background: getDeptColor(task.department), color: 'white',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 10, fontWeight: 700, flexShrink: 0,
+                            }}>
+                              {task.users.full_name.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <span style={{ fontSize: 13 }}>{task.users.full_name}</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 13, color: 'var(--slate-400)' }}>Unassigned</span>
+                        )}
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '13px' }}>{task.projects?.name || '—'}</div>
-                      {task.projects?.package_tier && (
-                        <span className={`badge badge-${task.projects.package_tier?.toLowerCase() || 'basic'}`} style={{ marginTop: '2px' }}>
-                          {task.projects.package_tier?.toUpperCase()}
+                      {task.department && (
+                        <span className="badge" style={{ background: `${getDeptColor(task.department)}12`, color: getDeptColor(task.department) }}>
+                          {task.department}
                         </span>
                       )}
                     </td>
                     <td>
                       {task.due_date ? (
                         <span style={{
-                          fontSize: '13px',
-                          color: isOverdue(task.due_date) ? 'var(--danger-600)' : 'var(--slate-700)',
-                          fontWeight: isOverdue(task.due_date) ? 600 : 400,
+                          fontSize: 13,
+                          color: isOverdue(task.due_date) && task.status !== 'complete' ? 'var(--danger-600)' : 'var(--slate-600)',
+                          fontWeight: isOverdue(task.due_date) && task.status !== 'complete' ? 600 : 400,
                         }}>
-                          {isOverdue(task.due_date) && 'Overdue — '}
-                          {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {isOverdue(task.due_date) && task.status !== 'complete' ? '⚠ ' : ''}
+                          {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       ) : '—'}
                     </td>
                     <td>{getPriorityBadge(task.priority)}</td>
-                    <td>{getQaStatusBadge(task.qa_status)}</td>
-                    <td>{getQaActions(task)}</td>
+                    <td>{getStatusBadge(task.status)}</td>
+                    <td style={{ fontSize: 13, color: 'var(--slate-600)' }}>
+                      {task.logged_hours || 0}/{task.estimated_hours || 0}h
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -171,6 +218,12 @@ export default function Tasks() {
           </div>
         )}
       </div>
+
+      <CreateTaskModal
+        open={showCreateTask}
+        onClose={() => setShowCreateTask(false)}
+        onCreated={() => fetchTasks()}
+      />
     </div>
   )
 }
