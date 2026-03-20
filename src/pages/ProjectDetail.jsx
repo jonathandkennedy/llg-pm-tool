@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import CreateTaskModal from './CreateTaskModal.jsx'
 
 export default function ProjectDetail({ projectId, onBack }) {
   const [project, setProject] = useState(null)
@@ -8,6 +9,7 @@ export default function ProjectDetail({ projectId, onBack }) {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
+  const [showCreateTask, setShowCreateTask] = useState(false)
 
   useEffect(() => {
     if (projectId) fetchAll()
@@ -360,7 +362,7 @@ export default function ProjectDetail({ projectId, onBack }) {
         <div className="card">
           <div className="card-header">
             <h3>All tasks ({tasks.length})</h3>
-            <button className="btn btn-primary btn-sm">+ Add Task</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>+ Add Task</button>
           </div>
           {tasks.length === 0 ? (
             <div className="empty-state"><p>No tasks for this project yet.</p></div>
@@ -515,6 +517,15 @@ export default function ProjectDetail({ projectId, onBack }) {
           </div>
         </div>
       )}
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        open={showCreateTask}
+        onClose={() => setShowCreateTask(false)}
+        projectId={projectId}
+        boardContext={project?.current_board === 'ONGOING' ? 'ONGOING' : 'LAUNCH'}
+        onCreated={() => fetchAll()}
+      />
     </div>
   )
 }
