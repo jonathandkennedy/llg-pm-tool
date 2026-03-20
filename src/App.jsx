@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import LaunchBoard from './pages/LaunchBoard.jsx'
 import OngoingBoard from './pages/OngoingBoard.jsx'
 import Projects from './pages/Projects.jsx'
+import ProjectDetail from './pages/ProjectDetail.jsx'
 import Tasks from './pages/Tasks.jsx'
 import Workload from './pages/Workload.jsx'
 import Reports from './pages/Reports.jsx'
@@ -29,7 +30,6 @@ export default function App() {
   const { route, navigate } = useHashRoute('dashboard')
 
   useEffect(() => {
-    // Check for demo mode in URL
     if (window.location.hash.includes('demo') || localStorage.getItem('llg_demo') === 'true') {
       setUser(DEMO_USER)
       setIsDemo(true)
@@ -61,12 +61,7 @@ export default function App() {
 
   async function fetchUserProfile(authUser) {
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
-
+      const { data } = await supabase.from('users').select('*').eq('id', authUser.id).single()
       setUser(data || { id: authUser.id, email: authUser.email, role: 'member' })
     } catch {
       setUser({ id: authUser.id, email: authUser.email, role: 'member' })
@@ -99,7 +94,6 @@ export default function App() {
     navigate('dashboard')
   }
 
-  // Loading
   if (authState === 'loading') {
     return (
       <div style={{
@@ -118,19 +112,27 @@ export default function App() {
     )
   }
 
-  // Not logged in
   if (authState === 'unauthenticated') {
     return <Login onSignIn={signInWithEmail} onDemo={enterDemo} />
   }
 
-  // Render page
+  // Parse route — support "project/UUID" pattern
+  const routeParts = route.split('/')
+  const basePage = routeParts[0]
+  const subId = routeParts[1] || null
+
   function renderPage() {
-    switch (route) {
+    // Project detail view
+    if (basePage === 'project' && subId) {
+      return <ProjectDetail projectId={subId} onBack={() => navigate('projects')} />
+    }
+
+    switch (basePage) {
       case 'dashboard': return <Dashboard user={user} />
       case 'inbox': return <Inbox user={user} />
-      case 'launch': return <LaunchBoard />
+      case 'launch': return <LaunchBoard onViewProject={(id) => navigate(`project/${id}`)} />
       case 'ongoing': return <OngoingBoard />
-      case 'projects': return <Projects />
+      case 'projects': return <Projects onViewProject={(id) => navigate(`project/${id}`)} />
       case 'tasks': return <Tasks />
       case 'workload': return <Workload />
       case 'reports': return <Reports />
@@ -138,6 +140,9 @@ export default function App() {
       default: return <Dashboard user={user} />
     }
   }
+
+  // Figure out which sidebar item to highlight
+  const sidebarRoute = basePage === 'project' ? 'projects' : basePage
 
   return (
     <>
@@ -157,7 +162,7 @@ export default function App() {
           </button>
         </div>
       )}
-      <Layout currentRoute={route} onNavigate={navigate} user={user} onSignOut={handleSignOut}>
+      <Layout currentRoute={sidebarRoute} onNavigate={navigate} user={user} onSignOut={handleSignOut}>
         {renderPage()}
       </Layout>
     </>
